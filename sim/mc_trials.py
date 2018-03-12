@@ -7,6 +7,38 @@ import matplotlib.pyplot as plt
 # we can represent this by using a list [0, 0, 0, 0]
 # This would be a drug that hasn't move though any trials
 
+class NPV(object):
+
+	def __init__(self, fcf, period_len, cost, prob, r=0.1, start_year=0):
+		# argument validation
+		if not isinstance(prob, list) and not isinstance(prob, float):
+			raise ValueError('please insert correct prob as a list of floats or a float')
+		if not isinstance(fcf, float) and not isinstance(fcf, list):
+			raise ValueError('please include a free cash flow as a float or list of floats')
+		if isinstance(fcf, list) and len(fcf) != period_len:
+			raise ValueError('please include a list of cash flows equal to the length of the period or use a static cash flow')
+		if isinstance(prob, list) and len(prob) != period_len:
+			raise ValueError('please include a list of probabilities equal to the length of the period or use a static probability')
+
+		self.fcf = fcf
+		self.start_year = start_year
+		self.period_len = period_len
+		self.cost = cost
+		self.prob = prob
+		self.r = r
+
+	def calc(self):
+		npv = -cost
+		for t in range(self.period_len):
+			prob = self.prob
+			fcf = self.fcf
+			if isinstance(self.prob, list):
+				prob = self.prob[t]
+			if isinstance(self.fcf, list):
+				fcf = self.fcf[t]
+			npv += (prob*fcf)/((1.+self.r)^(start_year+1))
+		return npv
+
 class State(object):
 
 	# outcomes
