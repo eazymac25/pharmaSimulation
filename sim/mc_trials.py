@@ -46,9 +46,10 @@ class State(object):
 	FAIL = 0
 	NOT_STARTED = -1
 
-	def __init__(self, val=-1, next=None):
+	def __init__(self, val=-1, next_state=None):
 		self.val = val
-		self.next = next
+		self.next = next_state
+		self.next_move = None
 
 	def attempt_trial(self, p, distribution=None):
 		if distribution is None:
@@ -63,6 +64,16 @@ class State(object):
 				return self.SUCCESS
 			return self.FAIL
 
+	def transition(self, p):
+		if self.val == self.NOT_STARTED:
+			trial_outcome = self.attempt_trial(p)
+			self.val = trial_outcome
+			if trial_outcome == self.SUCCESS:
+				self.next_move = self.next_state()
+			else:
+				return self.next_move = Fail()
+		return self.next_move
+
 class PreTrial(State):
 	
 	def transition(self, p):
@@ -71,6 +82,8 @@ class PreTrial(State):
 			self.val = trial_outcome
 			if trial_outcome == self.SUCCESS:
 				return P1()
+			else:
+				return Fail()
 		return self
 
 
@@ -82,6 +95,8 @@ class P1(State):
 			self.val = trial_outcome
 			if trial_outcome == self.SUCCESS:
 				return P2()
+			else:
+				return Fail()
 		return self
 
 class P2(State):
@@ -92,6 +107,8 @@ class P2(State):
 			self.val = trial_outcome
 			if trial_outcome == self.SUCCESS:
 				return P3()
+			else:
+				return Fail()
 		return self
 
 class P3(State):
@@ -101,8 +118,28 @@ class P3(State):
 			trial_outcome = self.attempt_trial(p)
 			self.val = trial_outcome
 			if trial_outcome == self.SUCCESS:
-				return Complete()
+				return NDA()
+			else:
+				return Fail()
 		return self
+
+class NDA(State):
+
+	def transition(self, p):
+		if self.val == self.NOT_STARTED:
+			trial_outcome = self.attempt_trial(p)
+			self.val = trial_outcome
+			if trial_outcome == self.SUCCESS:
+				return Complete()
+			else:
+				return Fail()
+		return self
+
+class Fail(State):
+
+	def __init__(self):
+		super(Complete, self).__init__()
+		self.val = self.FAIL
 
 class Complete(State):
 
@@ -112,13 +149,13 @@ class Complete(State):
 
 class ClinicalStages(object):
 
-	def __init__(self, start):
-		self.state = start
+	def __init__(self, states):
+		self.states = states
 
 	def trial_runs(self, probs):
 		idx = 0
 		while True:
-			if self.state.val == State.FAIL:
+			if isinstance(self.state, Fail):
 				break
 			if isinstance(self.state, Complete):
 				yield self.state
