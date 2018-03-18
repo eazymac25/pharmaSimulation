@@ -9,34 +9,30 @@ import matplotlib.pyplot as plt
 
 class NPV(object):
 
-	def __init__(self, fcf, patent_len, cost, prob, r=0.1, start_year=0):
+	def __init__(self, fcf, initial_cost=0, end_year=11, start_year=0, prob=1., r=0.1):
 		# argument validation
 		if not isinstance(prob, list) and not isinstance(prob, float):
 			raise ValueError('please insert correct prob as a list of floats or a float')
 		if not isinstance(fcf, float) and not isinstance(fcf, list):
 			raise ValueError('please include a free cash flow as a float or list of floats')
-		if isinstance(fcf, list) and len(fcf) != patent_len:
-			raise ValueError('please include a list of cash flows equal to the length of the period or use a static cash flow')
-		if isinstance(prob, list) and len(prob) != patent_len:
-			raise ValueError('please include a list of probabilities equal to the length of the period or use a static probability')
 
 		self.fcf = fcf
 		self.start_year = start_year
-		self.patent_len = patent_len
-		self.cost = cost
+		self.end_year = end_year
+		self.initial_cost = initial_cost
 		self.prob = prob
 		self.r = r
 
 	def calc(self):
-		npv = -self.cost
-		for t in range(self.start_year, self.patent_len + 1):
+		npv = -self.initial_cost
+		for t in range(self.start_year, self.end_year):
 			prob = self.prob
 			fcf = self.fcf
 			if isinstance(self.prob, list):
 				prob = self.prob[t]
 			if isinstance(self.fcf, list):
 				fcf = self.fcf[t]
-			npv += (prob*fcf)/((1.+self.r)^(t))
+			npv += (prob*fcf)/((1.+self.r)**t)
 		return npv
 
 class State(object):
@@ -96,33 +92,74 @@ class Complete(State):
 class Fail(State):
 
 	def __init__(self):
-		super(Complete, self).__init__()
+		super(Fail, self).__init__()
 		self.val = self.FAIL
 
 class ClinicalStages(object):
 
-	def __init__(self, stages=[]):
+	def __init__(self, stages=[], stage_len=[], start_year=0, initial_cost=0, yearly_cost=[], yearly_rev=[], cost_dist=(), rev_dist=()):
 		FIRST_STAGE = 0
-		self.state = stages[FIRST_STAGE]
+		self.state = stages[FIRST_STAGE]()
 		self.stages = stages
+		self.stage_len = stage_len
+		self.start_year = start_year
+		self.initial_cost = initial_cost
+		self.yearly_cost = yearly_cost
+		self.yearly_rev = yearly_rev
+		self.cost_dist = cost_dist
+		self.rev_dist = rev_dist
 
 	def trial_runs(self, probs):
 		idx = 0
+		last_state = self.state
 		while True:
 			if isinstance(self.state, Fail):
+				end_year = self.get_end_year(idx)
+				fcf = self.get_fcf()
+				npv = NPV(fcf, initial_cost=self.initial_cost, start_year=self.start_year, end_year=end_year)
+				npv_val = npv.calc()
+				return ('FAILED', last_state, npv_val)
 				break
 			if isinstance(self.state, Complete):
-				yield self.state
+				fcf = self.get_fcf()
+				npv = NPV(fcf, initial_cost=self.initial_cost, start_year=self.start_year)
+				npv_val = npv.calc()
+				return ('DONE', self.state, npv_val)
 				break
 			new_state = self.state.transition(probs[idx], self.stages[idx])
-			yield self.state
+			last_state = self.state
 			self.state = new_state
 			idx += 1
+
+	def get_end_year(self, step):
+		year = 0
+		for i in range(step):
+			year+=self.stage_len[i]
+		return year
+
+	def get_fcf(self):
+		if self.cost_dist and self.rev_dist:
+			costs, revs = self._randomize_cash_flows()
+			return [revs[i] - costs[i] 
+				for i in range(len(costs))]
+
+		return [self.yearly_rev[i] - self.yearly_cost[i]
+			for i in range(len(self.yearly_cost))]
+
+	def _randomize_cash_flows(self):
+		cost_dist_funcion, cost_dist_args = self.cost_dist
+		rev_dist_funcion, rev_dist_args = self.rev_dist
+		costs = []
+		revs = []
+		for idx in range(len(self.yearly_cost)):
+			costs.append(self.yearly_cost[idx] + cost_dist_funcion(*cost_dist_args))
+			revs.append(self.yearly_rev[idx] + rev_dist_funcion(*rev_dist_args))
+		return costs, revs
 
 class Simulation(object):
 
 	state_map = {
-		'PRE': PreTrial
+		'PRE': PreTrial,
 		'P1': P1,
 		'P2': P2,
 		'P3': P3,
@@ -131,30 +168,60 @@ class Simulation(object):
 	}
 
 	def __init__(self, drug_id, num_trials,
-		stage_list=('PRE','P1','P2','P3','NDA','DONE'), stage_len=[1,1,2,2,1,4],
-		stage_cost=[], stage_rev, probs=[], distributions=[]):
+		stage_list=('P2','P3','NDA','DONE'), start_year=0, stage_len=[2,2,1,4], initial_cost=50,
+		yearly_cost=[], yearly_rev=[], cost_dist=(), rev_dist=(), probs=[], distributions=[]):
 
 		self.drug_id = drug_id
 		self.num_trials = num_trials
-		self.npv = npv
 		self.stage_list = stage_list
+		self.stage_len = stage_len
+		self.start_year = start_year
+		self.initial_cost = initial_cost
+		self.yearly_cost = yearly_cost
+		self.yearly_rev = yearly_rev
+		self.cost_dist = cost_dist
+		self.rev_dist = rev_dist
 		self.probs = probs
 		self.distributions = distributions
 
 	def run_simulation(self):
 		stages = self.get_stages()
-		stop_point_counts = [0]*len(stages)
+		outcomes = []
 		for run in range(self.num_trials):
-			stages = ClinicalStages(stages=stages)
-			outcomes =[trial.val for trial in stages.trial_runs(self.probs)]
-			stop_point_counts[len(outcomes)-1] += 1
-		return stop_point_counts
+			clinical_trials = ClinicalStages(
+				stages=stages,
+				stage_len=self.stage_len,
+				initial_cost=self.initial_cost,
+				yearly_cost=self.yearly_cost,
+				yearly_rev=self.yearly_rev,
+				cost_dist=self.cost_dist,
+				rev_dist=self.rev_dist,
+				start_year=self.start_year
+			)
+			outcomes.append(clinical_trials.trial_runs(self.probs))
+		return outcomes
 
 	def get_stages(self):
 		return [self.state_map.get(stage) for stage in self.stage_list]
 
 if __name__ == '__main__':
-	sim = Simulation(1234, 100000, probs=[.7, .3, .5, .40])
+
+	sim = Simulation(
+		1234,
+		10000,
+		start_year=2,
+		yearly_cost=[1., 1., 4., 4., 4., 1., 1., 2., 2., 1., 1.],
+		yearly_rev = [0., 0., 0., 0., 0., 10., 50., 80., 70., 70., 50.],
+		cost_dist = (random.normal, (0, 1)),
+		rev_dist = (random.normal, (0, 10)),
+		probs=[1, 1, 1, 1]
+	)
 	results = sim.run_simulation()
-	plt.bar(range(len(results)), results)
+	print len(results)
+	buckets = []
+	for result in results:
+		if result[0]=='DONE':
+			buckets.append(result[2])
+	plt.hist([result[2] for result in results])
+	plt.title('NPV')
 	plt.show()
