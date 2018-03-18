@@ -9,34 +9,34 @@ import matplotlib.pyplot as plt
 
 class NPV(object):
 
-	def __init__(self, fcf, period_len, cost, prob, r=0.1, start_year=0):
+	def __init__(self, fcf, patent_len, cost, prob, r=0.1, start_year=0):
 		# argument validation
 		if not isinstance(prob, list) and not isinstance(prob, float):
 			raise ValueError('please insert correct prob as a list of floats or a float')
 		if not isinstance(fcf, float) and not isinstance(fcf, list):
 			raise ValueError('please include a free cash flow as a float or list of floats')
-		if isinstance(fcf, list) and len(fcf) != period_len:
+		if isinstance(fcf, list) and len(fcf) != patent_len:
 			raise ValueError('please include a list of cash flows equal to the length of the period or use a static cash flow')
-		if isinstance(prob, list) and len(prob) != period_len:
+		if isinstance(prob, list) and len(prob) != patent_len:
 			raise ValueError('please include a list of probabilities equal to the length of the period or use a static probability')
 
 		self.fcf = fcf
 		self.start_year = start_year
-		self.period_len = period_len
+		self.patent_len = patent_len
 		self.cost = cost
 		self.prob = prob
 		self.r = r
 
 	def calc(self):
-		npv = -cost
-		for t in range(self.period_len):
+		npv = -self.cost
+		for t in range(self.start_year, self.patent_len + 1):
 			prob = self.prob
 			fcf = self.fcf
 			if isinstance(self.prob, list):
 				prob = self.prob[t]
 			if isinstance(self.fcf, list):
 				fcf = self.fcf[t]
-			npv += (prob*fcf)/((1.+self.r)^(start_year+1))
+			npv += (prob*fcf)/((1.+self.r)^(t))
 		return npv
 
 class State(object):
@@ -102,8 +102,8 @@ class Fail(State):
 class ClinicalStages(object):
 
 	def __init__(self, stages=[]):
-		FST_STAGE = 0
-		self.state = stages[FST_STAGE]
+		FIRST_STAGE = 0
+		self.state = stages[FIRST_STAGE]
 		self.stages = stages
 
 	def trial_runs(self, probs):
@@ -130,8 +130,9 @@ class Simulation(object):
 		'DONE': Complete
 	}
 
-	def __init__(self, drug_id, num_trials, npv=None,
-		stage_list=('PRE','P1','P2','P3','NDA','DONE'), probs=[], distributions=[]):
+	def __init__(self, drug_id, num_trials,
+		stage_list=('PRE','P1','P2','P3','NDA','DONE'), stage_len=[1,1,2,2,1,4],
+		stage_cost=[], stage_rev, probs=[], distributions=[]):
 
 		self.drug_id = drug_id
 		self.num_trials = num_trials
