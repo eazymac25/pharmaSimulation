@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 # This would be a drug that hasn't move though any trials
 
 class NPV(object):
+	"""
+	A very simple NPV calculator
+	"""
 
 	def __init__(self, fcf, initial_cost=0, end_year=11, start_year=0, prob=1., r=0.1):
 		# argument validation
@@ -36,6 +39,9 @@ class NPV(object):
 		return npv
 
 class State(object):
+	"""
+	Base state object
+	"""
 
 	# outcomes
 	SUCCESS = 1
@@ -47,6 +53,11 @@ class State(object):
 		self.next = next
 
 	def attempt_trial(self, p, distribution=None):
+		"""
+		generates a random number based on a uniform random number generator
+		or a user defined distribution and compares to the probability threshold
+		p - returns a success signal or fail signal
+		"""
 		if distribution is None:
 			num = random.random()
 			if num <= p:
@@ -60,6 +71,10 @@ class State(object):
 			return self.FAIL
 
 	def transition(self, p, success_state):
+		"""
+		Transition to the next successful state or
+		ends as a failure based on a probability p
+		"""
 		if self.val == self.NOT_STARTED:
 			trial_outcome = self.attempt_trial(p)
 			self.val = trial_outcome
@@ -69,33 +84,58 @@ class State(object):
 		return self
 
 class PreTrial(State):
+	"""
+	Pre Clinical Trials State
+	"""
 	pass
 
 class P1(State):
+	"""
+	Phase 1 State
+	"""
 	pass
 
 class P2(State):
+	"""
+	Phase 2 State
+	"""
 	pass
 
 class P3(State):
+	"""
+	Phase 3 States
+	"""
 	pass
 
 class NDA(State):
+	"""
+	NDA State
+	"""
 	pass
 
 class Complete(State):
+	"""
+	Complete state - successfully released a drug
+	to market
+	"""
 
 	def __init__(self):
 		super(Complete, self).__init__()
 		self.val = self.SUCCESS
 
 class Fail(State):
+	"""
+	Failed to pass a trial or release to market
+	"""
 
 	def __init__(self):
 		super(Fail, self).__init__()
 		self.val = self.FAIL
 
 class ClinicalStages(object):
+	"""
+	Collection of Clinical Trial Stages to step through
+	"""
 
 	def __init__(self, stages=[], stage_len=[], start_year=0, initial_cost=0, yearly_cost=[], yearly_rev=[], cost_dist=(), rev_dist=()):
 		FIRST_STAGE = 0
@@ -110,6 +150,10 @@ class ClinicalStages(object):
 		self.rev_dist = rev_dist
 
 	def trial_runs(self, probs):
+		"""
+		a function to step through each of the states in the list of stages
+		Attempts each trial and will end in either a FAILED states or COMPLETE state
+		"""
 		idx = 0
 		last_state = self.state
 		while True:
@@ -157,6 +201,9 @@ class ClinicalStages(object):
 		return costs, revs
 
 class Simulation(object):
+	"""
+	Run a simulation for a drug
+	"""
 
 	state_map = {
 		'PRE': PreTrial,
