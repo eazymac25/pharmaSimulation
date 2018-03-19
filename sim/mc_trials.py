@@ -1,6 +1,4 @@
-# test
 from numpy import random 
-from math import floor, ceil
 import matplotlib.pyplot as plt
 
 # Trials are a Directed Acyclic Graph (DAG) -> for simplicity it's a singly linked list
@@ -140,7 +138,7 @@ class ClinicalStages(object):
 	def __init__(self, stages=[], stage_len=[], start_year=0, initial_cost=0, yearly_cost=[], yearly_rev=[], cost_dist=(), rev_dist=()):
 		FIRST_STAGE = 0
 		self.state = stages[FIRST_STAGE]()
-		self.stages = stages
+		self.stages = stages[1:] # crufty - will need to change
 		self.stage_len = stage_len
 		self.start_year = start_year
 		self.initial_cost = initial_cost
@@ -261,7 +259,7 @@ if __name__ == '__main__':
 		yearly_rev = [0., 0., 0., 0., 0., 10., 50., 80., 70., 70., 50.],
 		cost_dist = (random.normal, (0, 1)),
 		rev_dist = (random.normal, (0, 10)),
-		probs=[1, 1, 1, 1]
+		probs=[1, 1, 1]
 	)
 	results = sim.run_simulation()
 	print len(results)
