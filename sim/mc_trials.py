@@ -213,7 +213,7 @@ class Simulation(object):
 	}
 
 	def __init__(self, drug_id, num_trials,
-		stage_list=('P2','P3','NDA','DONE'), start_year=0, stage_len=[2,2,1,4], initial_cost=50,
+		stage_list=('PRE','P1','P2','P3','NDA','DONE'), start_year=0, stage_len=[], initial_cost=0,
 		yearly_cost=[], yearly_rev=[], cost_dist=(), rev_dist=(), probs=[], distributions=[]):
 
 		self.drug_id = drug_id
@@ -254,7 +254,9 @@ if __name__ == '__main__':
 	sim = Simulation(
 		1234,
 		10000,
+		stage_list=('P2','P3','NDA','DONE'),
 		start_year=2,
+		stage_len=[2,2,1,4],
 		yearly_cost=[1., 1., 4., 4., 4., 1., 1., 2., 2., 1., 1.],
 		yearly_rev = [0., 0., 0., 0., 0., 10., 50., 80., 70., 70., 50.],
 		cost_dist = (random.normal, (0, 1)),
